@@ -12,10 +12,16 @@ export default function PermintaanBarangPedagang() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const switchCabang = JSON.parse(localStorage.getItem('switchCabang') || 'null')
-  const activeCabangId = switchCabang ? switchCabang.id : null
+  const activeCabangId = switchCabang?.id
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => {
+    fetchAll()
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -40,28 +46,21 @@ export default function PermintaanBarangPedagang() {
   const updateItem = (i, field, val) => { const n = [...items]; n[i][field] = val; setItems(n) }
 
   const handleSubmit = async () => {
-    if (!activeCabangId) { setError('Pilih cabang dulu di mode pedagang!'); return }
+    if (!activeCabangId) { setError('Pilih cabang dulu!'); return }
     if (items.some(i => !i.produk_id || !i.qty_diminta)) { setError('Semua baris produk wajib diisi!'); return }
     setSaving(true); setError('')
 
     const { data: newPB } = await supabase.from('permintaan_barang').insert({
-      cabang_id: activeCabangId,
-      status: 'request',
-      nomor_pb: ''
+      cabang_id: activeCabangId, status: 'request', nomor_pb: ''
     }).select().single()
 
     if (newPB) {
       await supabase.from('permintaan_barang_detail').insert(
-        items.map(item => ({
-          pb_id: newPB.id,
-          produk_id: item.produk_id,
-          qty_diminta: parseInt(item.qty_diminta)
-        }))
+        items.map(item => ({ pb_id: newPB.id, produk_id: item.produk_id, qty_diminta: parseInt(item.qty_diminta) }))
       )
     }
 
-    setSaving(false)
-    setView('list')
+    setSaving(false); setView('list')
     setItems([{ produk_id: '', qty_diminta: '' }])
     fetchAll()
   }
@@ -88,8 +87,7 @@ export default function PermintaanBarangPedagang() {
     <Layout>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-          <button onClick={() => setView('list')}
-            style={{ padding: '6px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>← Kembali</button>
+          <button onClick={() => setView('list')} style={{ padding: '6px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>← Kembali</button>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '500' }}>Buat Permintaan Barang</h2>
         </div>
 
@@ -97,8 +95,7 @@ export default function PermintaanBarangPedagang() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <div>
               <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Nomor PB</label>
-              <input type="text" readOnly
-                style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', background: '#f5f5f5', color: '#aaa' }} />
+              <input type="text" readOnly style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', background: '#f5f5f5', color: '#aaa' }} />
             </div>
             <div>
               <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Cabang</label>
@@ -108,51 +105,77 @@ export default function PermintaanBarangPedagang() {
           </div>
         </div>
 
-        <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888', width: '55%' }}>Produk</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888', width: '35%' }}>Qty diminta (cup)</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888', width: '10%' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, i) => (
-                <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px 16px' }}>
-                    <select value={item.produk_id} onChange={e => updateItem(i, 'produk_id', e.target.value)}
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px' }}>
-                      <option value="">Pilih produk</option>
-                      {produk.map(p => <option key={p.id} value={p.id}>{p.kode_barang} — {p.nama_varian}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ padding: '8px 16px' }}>
-                    <input type="number" value={item.qty_diminta} onChange={e => updateItem(i, 'qty_diminta', e.target.value)} placeholder="0"
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', textAlign: 'center', boxSizing: 'border-box' }} />
-                  </td>
-                  <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                    {items.length > 1 && (
-                      <button onClick={() => removeItem(i)}
-                        style={{ border: 'none', background: 'none', color: '#e05555', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0' }}>
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1rem' }}>
+            {items.map((item, i) => (
+              <div key={i} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <label style={{ fontSize: '13px', color: '#666' }}>Produk {i + 1}</label>
+                  {items.length > 1 && (
+                    <button onClick={() => removeItem(i)} style={{ border: 'none', background: 'none', color: '#e05555', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+                  )}
+                </div>
+                <select value={item.produk_id} onChange={e => updateItem(i, 'produk_id', e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box' }}>
+                  <option value="">Pilih produk</option>
+                  {produk.map(p => <option key={p.id} value={p.id}>{p.kode_barang} — {p.nama_varian}</option>)}
+                </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '13px', color: '#666', flexShrink: 0 }}>Qty diminta:</label>
+                  <input type="number" value={item.qty_diminta} onChange={e => updateItem(i, 'qty_diminta', e.target.value)}
+                    placeholder="0"
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '15px', textAlign: 'center' }} />
+                  <span style={{ fontSize: '13px', color: '#888', flexShrink: 0 }}>cup</span>
+                </div>
+              </div>
+            ))}
             <button onClick={addItem}
-              style={{ padding: '6px 14px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>+ Tambah baris</button>
+              style={{ padding: '12px', border: '1px dashed #e0e0e0', borderRadius: '12px', fontSize: '14px', cursor: 'pointer', background: 'white', color: '#888' }}>
+              + Tambah produk
+            </button>
           </div>
-        </div>
+        ) : (
+          <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888', width: '55%' }}>Produk</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888', width: '35%' }}>Qty diminta (cup)</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888', width: '10%' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 16px' }}>
+                      <select value={item.produk_id} onChange={e => updateItem(i, 'produk_id', e.target.value)}
+                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px' }}>
+                        <option value="">Pilih produk</option>
+                        {produk.map(p => <option key={p.id} value={p.id}>{p.kode_barang} — {p.nama_varian}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding: '8px 16px' }}>
+                      <input type="number" value={item.qty_diminta} onChange={e => updateItem(i, 'qty_diminta', e.target.value)} placeholder="0"
+                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', textAlign: 'center', boxSizing: 'border-box' }} />
+                    </td>
+                    <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                      {items.length > 1 && <button onClick={() => removeItem(i)} style={{ border: 'none', background: 'none', color: '#e05555', cursor: 'pointer', fontSize: '16px' }}>✕</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0' }}>
+              <button onClick={addItem} style={{ padding: '6px 14px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>+ Tambah baris</button>
+            </div>
+          </div>
+        )}
 
         {error && <p style={{ color: 'red', fontSize: '13px', margin: '0 0 1rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          <button onClick={() => setView('list')}
-            style={{ padding: '8px 16px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>Batal</button>
+          <button onClick={() => setView('list')} style={{ padding: '10px 20px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', background: 'white' }}>Batal</button>
           <button onClick={handleSubmit} disabled={saving}
-            style={{ padding: '8px 16px', background: '#f0faf0', border: '1px solid #c0e0c0', borderRadius: '8px', fontSize: '13px', fontWeight: '500', color: '#2d7a2d', cursor: 'pointer' }}>
+            style={{ padding: '10px 20px', background: '#f0faf0', border: '1px solid #c0e0c0', borderRadius: '8px', fontSize: '14px', fontWeight: '500', color: '#2d7a2d', cursor: 'pointer' }}>
             {saving ? 'Menyimpan...' : 'Kirim request →'}
           </button>
         </div>
@@ -165,13 +188,10 @@ export default function PermintaanBarangPedagang() {
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => setView('list')}
-              style={{ padding: '6px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>← Kembali</button>
+            <button onClick={() => setView('list')} style={{ padding: '6px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: 'white' }}>← Kembali</button>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '500' }}>{detailData.nomor_pb}</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#888' }}>
-                {detailData.cabang?.nama_cabang} · {new Date(detailData.created_at).toLocaleDateString('id-ID')}
-              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#888' }}>{detailData.cabang?.nama_cabang} · {new Date(detailData.created_at).toLocaleDateString('id-ID')}</p>
             </div>
           </div>
           {statusBadge(detailData.status)}
@@ -182,33 +202,46 @@ export default function PermintaanBarangPedagang() {
             Request ditolak oleh DC
           </div>
         )}
-
         {detailData.status === 'approved' && (
           <div style={{ padding: '10px 16px', background: '#f0faf0', border: '1px solid #c0e0c0', borderRadius: '8px', marginBottom: '1rem', fontSize: '13px', color: '#2d7a2d' }}>
             Request disetujui — DC sedang menyiapkan DO
           </div>
         )}
 
-        <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama barang</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Qty diminta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailData.detail?.map((item, i) => (
-                <tr key={item.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                  <td style={{ padding: '10px 16px', color: '#888' }}>{item.produk?.kode_barang}</td>
-                  <td style={{ padding: '10px 16px' }}>{item.produk?.nama_varian}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center' }}>{item.qty_diminta}</td>
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {detailData.detail?.map(item => (
+              <div key={item.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: '500', fontSize: '14px' }}>{item.produk?.nama_varian}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#888' }}>{item.produk?.kode_barang}</p>
+                </div>
+                <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.qty_diminta} cup</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama barang</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Qty diminta</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {detailData.detail?.map((item, i) => (
+                  <tr key={item.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                    <td style={{ padding: '10px 16px', color: '#888' }}>{item.produk?.kode_barang}</td>
+                    <td style={{ padding: '10px 16px' }}>{item.produk?.nama_varian}</td>
+                    <td style={{ padding: '10px 16px', textAlign: 'center' }}>{item.qty_diminta}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Layout>
   )
@@ -237,23 +270,41 @@ export default function PermintaanBarangPedagang() {
           </select>
         </div>
 
-        <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nomor PB</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Tanggal</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</td></tr>
-              ) : pbList.filter(p => !filterStatus || p.status === filterStatus).length === 0 ? (
-                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada permintaan barang</td></tr>
-              ) : (
-                pbList.filter(p => !filterStatus || p.status === filterStatus).map((item, i) => (
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</div>
+        ) : pbList.filter(p => !filterStatus || p.status === filterStatus).length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #e0e0e0', color: '#888' }}>Belum ada permintaan barang</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {pbList.filter(p => !filterStatus || p.status === filterStatus).map(item => (
+              <div key={item.id} onClick={() => fetchDetail(item)}
+                style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '500', fontSize: '14px' }}>{item.nomor_pb}</p>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#888' }}>{new Date(item.created_at).toLocaleDateString('id-ID')}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {statusBadge(item.status)}
+                    <span style={{ color: '#aaa' }}>›</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nomor PB</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Tanggal</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pbList.filter(p => !filterStatus || p.status === filterStatus).map((item, i) => (
                   <tr key={item.id} onClick={() => fetchDetail(item)}
                     style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', cursor: 'pointer' }}
                     onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'}
@@ -263,11 +314,11 @@ export default function PermintaanBarangPedagang() {
                     <td style={{ padding: '10px 16px', textAlign: 'center' }}>{statusBadge(item.status)}</td>
                     <td style={{ padding: '10px 16px', textAlign: 'center', color: '#aaa' }}>›</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Layout>
   )
