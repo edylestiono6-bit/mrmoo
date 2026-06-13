@@ -6,22 +6,33 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const user = JSON.parse(localStorage.getItem('user'))
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (window.innerWidth < 768) return false
+    return localStorage.getItem('sidebarOpen') !== 'false'
+  })
   const [switchMode, setSwitchMode] = useState(localStorage.getItem('switchMode') || 'dc')
   const [switchCabang, setSwitchCabang] = useState(JSON.parse(localStorage.getItem('switchCabang') || 'null'))
   const [showSwitchModal, setShowSwitchModal] = useState(false)
   const [cabangList, setCabangList] = useState([])
 
+  const toggleSidebar = (val) => {
+    setSidebarOpen(val)
+    if (!isMobile) localStorage.setItem('sidebarOpen', val)
+  }
+
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
-      if (!mobile) setSidebarOpen(true)
-      else setSidebarOpen(false)
+      if (!mobile) {
+        const saved = localStorage.getItem('sidebarOpen')
+        setSidebarOpen(saved !== 'false')
+      } else {
+        setSidebarOpen(false)
+      }
     }
     window.addEventListener('resize', handleResize)
-    if (!isMobile) setSidebarOpen(true)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
@@ -82,7 +93,7 @@ export default function Layout({ children }) {
 
   const handleNavigate = (path) => {
     navigate(path)
-    if (isMobile) setSidebarOpen(false)
+    if (isMobile) toggleSidebar(false)
   }
 
   return (
@@ -90,7 +101,7 @@ export default function Layout({ children }) {
 
       {/* Overlay mobile */}
       {isMobile && sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)}
+        <div onClick={() => toggleSidebar(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }} />
       )}
 
@@ -115,7 +126,7 @@ export default function Layout({ children }) {
             <span style={{ fontSize: '15px', fontWeight: '500' }}>Mr.Moo</span>
           </div>
           {isMobile && (
-            <button onClick={() => setSidebarOpen(false)}
+            <button onClick={() => toggleSidebar(false)}
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '20px', color: '#888', padding: '4px' }}>✕</button>
           )}
         </div>
@@ -163,6 +174,7 @@ export default function Layout({ children }) {
             localStorage.removeItem('user')
             localStorage.removeItem('switchMode')
             localStorage.removeItem('switchCabang')
+            localStorage.removeItem('sidebarOpen')
             navigate('/')
           }}
             style={{ width: '100%', padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white', color: '#e05555' }}>
@@ -172,7 +184,14 @@ export default function Layout({ children }) {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        marginLeft: !isMobile && sidebarOpen ? '240px' : '0',
+        transition: 'margin-left 0.25s ease'
+      }}>
 
         {/* Top navbar */}
         <div style={{
@@ -182,19 +201,11 @@ export default function Layout({ children }) {
           position: 'sticky', top: 0, zIndex: 80
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)}
+            <button onClick={() => toggleSidebar(!sidebarOpen)}
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '22px', color: '#555', padding: '4px', lineHeight: 1 }}>
               ☰
             </button>
-            {!isMobile && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '18px' }}>🐄</span>
-                <span style={{ fontSize: '15px', fontWeight: '500' }}>Mr.Moo</span>
-              </div>
-            )}
-            {isMobile && (
-              <span style={{ fontSize: '15px', fontWeight: '500' }}>Mr.Moo</span>
-            )}
+            <span style={{ fontSize: '15px', fontWeight: '500' }}>Mr.Moo</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {activeMode === 'pedagang' && switchCabang && (
