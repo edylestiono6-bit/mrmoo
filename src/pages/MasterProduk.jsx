@@ -10,8 +10,14 @@ export default function MasterProduk() {
   const [form, setForm] = useState({ nama_varian: '', hpp: '', harga_jual: '', is_aktif: true })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
-  useEffect(() => { fetchProduk() }, [])
+  useEffect(() => {
+    fetchProduk()
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const fetchProduk = async () => {
     setLoading(true)
@@ -24,20 +30,9 @@ export default function MasterProduk() {
     if (!form.nama_varian || !form.hpp || !form.harga_jual) { setError('Semua field wajib diisi!'); return }
     setSaving(true); setError('')
     if (editData) {
-      await supabase.from('produk').update({
-        nama_varian: form.nama_varian,
-        hpp: parseFloat(form.hpp),
-        harga_jual: parseFloat(form.harga_jual),
-        is_aktif: form.is_aktif
-      }).eq('id', editData.id)
+      await supabase.from('produk').update({ nama_varian: form.nama_varian, hpp: parseFloat(form.hpp), harga_jual: parseFloat(form.harga_jual), is_aktif: form.is_aktif }).eq('id', editData.id)
     } else {
-      await supabase.from('produk').insert({
-        nama_varian: form.nama_varian,
-        hpp: parseFloat(form.hpp),
-        harga_jual: parseFloat(form.harga_jual),
-        is_aktif: form.is_aktif,
-        kode_barang: ''
-      })
+      await supabase.from('produk').insert({ nama_varian: form.nama_varian, hpp: parseFloat(form.hpp), harga_jual: parseFloat(form.harga_jual), is_aktif: form.is_aktif, kode_barang: '' })
     }
     setSaving(false); setShowForm(false); setEditData(null)
     setForm({ nama_varian: '', hpp: '', harga_jual: '', is_aktif: true })
@@ -114,25 +109,59 @@ export default function MasterProduk() {
           </div>
         )}
 
-        <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama varian</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>HPP</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>Harga jual</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</td></tr>
-              ) : produk.length === 0 ? (
-                <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada produk</td></tr>
-              ) : (
-                produk.map((item, i) => (
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {produk.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #e0e0e0', color: '#888' }}>Belum ada produk</div>
+            ) : produk.map(item => (
+              <div key={item.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '500', fontSize: '14px' }}>{item.nama_varian}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#888' }}>{item.kode_barang}</p>
+                  </div>
+                  <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: item.is_aktif ? '#f0faf0' : '#f5f5f5', color: item.is_aktif ? '#2d7a2d' : '#888' }}>
+                    {item.is_aktif ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#aaa' }}>HPP</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: '500' }}>Rp {Number(item.hpp).toLocaleString('id-ID')}</p>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#aaa' }}>Harga jual</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: '500' }}>Rp {Number(item.harga_jual).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEdit(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white' }}>Edit</button>
+                  <button onClick={() => handleToggleAktif(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white', color: item.is_aktif ? '#e05555' : '#2d7a2d' }}>
+                    {item.is_aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama varian</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>HPP</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>Harga jual</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {produk.length === 0 ? (
+                  <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada produk</td></tr>
+                ) : produk.map((item, i) => (
                   <tr key={item.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ padding: '10px 16px', color: '#888' }}>{item.kode_barang}</td>
                     <td style={{ padding: '10px 16px', fontWeight: '500' }}>{item.nama_varian}</td>
@@ -152,11 +181,11 @@ export default function MasterProduk() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Layout>
   )

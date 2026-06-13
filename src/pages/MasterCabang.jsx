@@ -7,15 +7,17 @@ export default function MasterCabang() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editData, setEditData] = useState(null)
-  const [form, setForm] = useState({
-    nama_cabang: '', alamat: '',
-    tipe_upah: 'komisi', gaji_tetap: '',
-    komisi_per_cup: '1000', is_aktif: true
-  })
+  const [form, setForm] = useState({ nama_cabang: '', alamat: '', tipe_upah: 'komisi', gaji_tetap: '', komisi_per_cup: '1000', is_aktif: true })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
-  useEffect(() => { fetchCabang() }, [])
+  useEffect(() => {
+    fetchCabang()
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const fetchCabang = async () => {
     setLoading(true)
@@ -29,12 +31,10 @@ export default function MasterCabang() {
     if (form.tipe_upah === 'gaji_komisi' && !form.gaji_tetap) { setError('Gaji tetap wajib diisi!'); return }
     setSaving(true); setError('')
     const payload = {
-      nama_cabang: form.nama_cabang,
-      alamat: form.alamat,
+      nama_cabang: form.nama_cabang, alamat: form.alamat,
       tipe_upah: form.tipe_upah,
       gaji_tetap: form.tipe_upah === 'gaji_komisi' ? parseFloat(form.gaji_tetap) : 0,
-      komisi_per_cup: parseFloat(form.komisi_per_cup),
-      is_aktif: form.is_aktif
+      komisi_per_cup: parseFloat(form.komisi_per_cup), is_aktif: form.is_aktif
     }
     if (editData) {
       await supabase.from('cabang').update(payload).eq('id', editData.id)
@@ -48,14 +48,7 @@ export default function MasterCabang() {
 
   const handleEdit = (item) => {
     setEditData(item)
-    setForm({
-      nama_cabang: item.nama_cabang,
-      alamat: item.alamat || '',
-      tipe_upah: item.tipe_upah,
-      gaji_tetap: item.gaji_tetap || '',
-      komisi_per_cup: item.komisi_per_cup,
-      is_aktif: item.is_aktif
-    })
+    setForm({ nama_cabang: item.nama_cabang, alamat: item.alamat || '', tipe_upah: item.tipe_upah, gaji_tetap: item.gaji_tetap || '', komisi_per_cup: item.komisi_per_cup, is_aktif: item.is_aktif })
     setShowForm(true)
   }
 
@@ -92,7 +85,7 @@ export default function MasterCabang() {
                 <input type="text" value={form.nama_cabang} onChange={e => setForm({ ...form, nama_cabang: e.target.value })} placeholder="Nama cabang"
                   style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
-              <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ gridColumn: isMobile ? '1' : '1 / -1' }}>
                 <label style={{ fontSize: '13px', color: '#666', display: 'block', marginBottom: '6px' }}>Alamat</label>
                 <input type="text" value={form.alamat} onChange={e => setForm({ ...form, alamat: e.target.value })} placeholder="Alamat lengkap"
                   style={{ width: '100%', padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
@@ -138,26 +131,63 @@ export default function MasterCabang() {
           </div>
         )}
 
-        <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama cabang</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Alamat</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Tipe upah</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>Komisi/cup</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</td></tr>
-              ) : cabang.length === 0 ? (
-                <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada cabang</td></tr>
-              ) : (
-                cabang.map((item, i) => (
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {cabang.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #e0e0e0', color: '#888' }}>Belum ada cabang</div>
+            ) : cabang.map(item => (
+              <div key={item.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '500', fontSize: '14px' }}>{item.nama_cabang}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#888' }}>{item.kode_cabang}</p>
+                    {item.alamat && <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#aaa' }}>{item.alamat}</p>}
+                  </div>
+                  <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: item.is_aktif ? '#f0faf0' : '#f5f5f5', color: item.is_aktif ? '#2d7a2d' : '#888' }}>
+                    {item.is_aktif ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#aaa' }}>Tipe upah</p>
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: item.tipe_upah === 'gaji_komisi' ? '#f0f0ff' : '#f0faf0', color: item.tipe_upah === 'gaji_komisi' ? '#5555cc' : '#2d7a2d' }}>
+                      {item.tipe_upah === 'gaji_komisi' ? 'Gaji + Komisi' : 'Komisi'}
+                    </span>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#aaa' }}>Komisi/cup</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: '500' }}>Rp {Number(item.komisi_per_cup).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEdit(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white' }}>Edit</button>
+                  <button onClick={() => handleToggleAktif(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white', color: item.is_aktif ? '#e05555' : '#2d7a2d' }}>
+                    {item.is_aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Kode</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Nama cabang</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Alamat</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Tipe upah</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '400', color: '#888' }}>Komisi/cup</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cabang.length === 0 ? (
+                  <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada cabang</td></tr>
+                ) : cabang.map((item, i) => (
                   <tr key={item.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ padding: '10px 16px', color: '#888' }}>{item.kode_cabang}</td>
                     <td style={{ padding: '10px 16px', fontWeight: '500' }}>{item.nama_cabang}</td>
@@ -182,11 +212,11 @@ export default function MasterCabang() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Layout>
   )

@@ -11,8 +11,14 @@ export default function MasterPengguna() {
   const [form, setForm] = useState({ nama: '', cabang_id: '', role: 'pedagang', password: '', is_aktif: true })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    fetchData()
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
@@ -29,9 +35,7 @@ export default function MasterPengguna() {
     if (!nama || !cabangId) return ''
     const cabangData = cabang.find(c => c.id === cabangId)
     if (!cabangData) return ''
-    const namaBersih = nama.toLowerCase().replace(/\s+/g, '')
-    const cabangBersih = cabangData.nama_cabang.toLowerCase().replace(/\s+/g, '')
-    return `${namaBersih}_${cabangBersih}`
+    return `${nama.toLowerCase().replace(/\s+/g, '')}_${cabangData.nama_cabang.toLowerCase().replace(/\s+/g, '')}`
   }
 
   const handleSubmit = async () => {
@@ -43,12 +47,7 @@ export default function MasterPengguna() {
       ? generateUsername(form.nama, form.cabang_id)
       : form.nama.toLowerCase().replace(/\s+/g, '')
 
-    const payload = {
-      username,
-      password: form.password,
-      role: form.role,
-      is_aktif: form.is_aktif
-    }
+    const payload = { username, password: form.password, role: form.role, is_aktif: form.is_aktif }
 
     if (editData) {
       await supabase.from('pengguna').update(payload).eq('id', editData.id)
@@ -76,6 +75,16 @@ export default function MasterPengguna() {
   const handleToggleAktif = async (item) => {
     await supabase.from('pengguna').update({ is_aktif: !item.is_aktif }).eq('id', item.id)
     fetchData()
+  }
+
+  const roleBadge = (role) => {
+    const map = {
+      super_dc: { bg: '#fff0f0', color: '#cc2222', label: 'Super DC' },
+      dc: { bg: '#f0f0ff', color: '#5555cc', label: 'DC' },
+      pedagang: { bg: '#f0faf0', color: '#2d7a2d', label: 'Pedagang' }
+    }
+    const s = map[role] || map.pedagang
+    return <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: s.bg, color: s.color }}>{s.label}</span>
   }
 
   const usernamePreview = generateUsername(form.nama, form.cabang_id)
@@ -154,33 +163,54 @@ export default function MasterPengguna() {
           </div>
         )}
 
-        <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f9f9f9' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Username</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Role</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Dibuat</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</td></tr>
-              ) : pengguna.length === 0 ? (
-                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada pengguna</td></tr>
-              ) : (
-                pengguna.map((item, i) => (
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Memuat data...</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {pengguna.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #e0e0e0', color: '#888' }}>Belum ada pengguna</div>
+            ) : pengguna.map(item => (
+              <div key={item.id} style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '500', fontSize: '14px' }}>{item.username}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#888' }}>{new Date(item.created_at).toLocaleDateString('id-ID')}</p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    {roleBadge(item.role)}
+                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: item.is_aktif ? '#f0faf0' : '#f5f5f5', color: item.is_aktif ? '#2d7a2d' : '#888' }}>
+                      {item.is_aktif ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEdit(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white' }}>Edit</button>
+                  <button onClick={() => handleToggleAktif(item)} style={{ flex: 1, padding: '8px', fontSize: '13px', border: '1px solid #e0e0e0', borderRadius: '8px', cursor: 'pointer', background: 'white', color: item.is_aktif ? '#e05555' : '#2d7a2d' }}>
+                    {item.is_aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '12px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f9f9f9' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Username</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Role</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: '400', color: '#888' }}>Dibuat</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Status</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '400', color: '#888' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pengguna.length === 0 ? (
+                  <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Belum ada pengguna</td></tr>
+                ) : pengguna.map((item, i) => (
                   <tr key={item.id} style={{ borderTop: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ padding: '10px 16px', fontWeight: '500' }}>{item.username}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px',
-                        background: item.role === 'super_dc' ? '#fff0f0' : item.role === 'dc' ? '#f0f0ff' : '#f0faf0',
-                        color: item.role === 'super_dc' ? '#cc2222' : item.role === 'dc' ? '#5555cc' : '#2d7a2d' }}>
-                        {item.role === 'super_dc' ? 'Super DC' : item.role === 'dc' ? 'DC' : 'Pedagang'}
-                      </span>
-                    </td>
+                    <td style={{ padding: '10px 16px' }}>{roleBadge(item.role)}</td>
                     <td style={{ padding: '10px 16px', color: '#888' }}>{new Date(item.created_at).toLocaleDateString('id-ID')}</td>
                     <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                       <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: item.is_aktif ? '#f0faf0' : '#f5f5f5', color: item.is_aktif ? '#2d7a2d' : '#888' }}>
@@ -196,11 +226,11 @@ export default function MasterPengguna() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Layout>
   )
