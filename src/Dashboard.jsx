@@ -20,9 +20,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchStats()
-    console.log('switchMode:', switchMode)
-console.log('activeCabangId:', activeCabangId)
-console.log('user:', user)
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
