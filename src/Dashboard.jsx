@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
-import Layout from '../components/Layout'
+import { supabase } from './supabase'
+import Layout from './components/Layout'
 import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
