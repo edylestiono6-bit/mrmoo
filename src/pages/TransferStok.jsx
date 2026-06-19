@@ -132,41 +132,54 @@ export default function TransferStok() {
   }
 
   const handleTerima = async () => {
-    setSaving(true)
+  setSaving(true)
 
-    for (const item of detailData.detail) {
-      const qtyDiterima = parseInt(editQty[item.id] || item.qty_kirim)
-      await supabase.from('transfer_stok_detail').update({ qty_diterima: qtyDiterima }).eq('id', item.id)
+  for (const item of detailData.detail) {
+    const qtyDiterima = parseInt(editQty[item.id] || item.qty_kirim)
+    
+    // Update qty_diterima di detail
+    await supabase.from('transfer_stok_detail')
+      .update({ qty_diterima: qtyDiterima })
+      .eq('id', item.id)
 
-      await supabase.from('stok_cabang_batch').insert({
-        cabang_id: detailData.cabang_tujuan_id,
-        produk_id: item.produk_id,
-        hpp_saat_itu: item.hpp_saat_itu,
-        qty_masuk: qtyDiterima,
-        qty_sisa: qtyDiterima,
-        tanggal_masuk: new Date().toISOString().split('T')[0]
-      })
+    // 1. KURANGI stok cabang asal dulu (FIFO)
+    let sisaKurangi = parseInt(item.qty_kirim)
+    const { data: batches } = await supabase
+      .from('stok_cabang_batch')
+      .select('*')
+      .eq('cabang_id', detailData.cabang_asal_id)
+      .eq('produk_id', item.produk_id)
+      .gt('qty_sisa', 0)
+      .order('tanggal_masuk', { ascending: true })
 
-      let sisaKurangi = parseInt(item.qty_kirim)
-      const { data: batches } = await supabase
-        .from('stok_cabang_batch')
-        .select('*')
-        .eq('cabang_id', detailData.cabang_asal_id)
-        .eq('produk_id', item.produk_id)
-        .gt('qty_sisa', 0)
-        .order('tanggal_masuk', { ascending: true })
-
-      for (const batch of (batches || [])) {
-        if (sisaKurangi <= 0) break
-        const kurangi = Math.min(batch.qty_sisa, sisaKurangi)
-        await supabase.from('stok_cabang_batch').update({ qty_sisa: batch.qty_sisa - kurangi }).eq('id', batch.id)
-        sisaKurangi -= kurangi
-      }
+    for (const batch of (batches || [])) {
+      if (sisaKurangi <= 0) break
+      const kurangi = Math.min(batch.qty_sisa, sisaKurangi)
+      await supabase.from('stok_cabang_batch')
+        .update({ qty_sisa: batch.qty_sisa - kurangi })
+        .eq('id', batch.id)
+      sisaKurangi -= kurangi
     }
 
-    await supabase.from('transfer_stok').update({ status: 'diterima' }).eq('id', detailData.id)
-    setSaving(false); setView('list'); fetchAll()
+    // 2. BARU tambah stok cabang tujuan
+    await supabase.from('stok_cabang_batch').insert({
+      cabang_id: detailData.cabang_tujuan_id,
+      produk_id: item.produk_id,
+      hpp_saat_itu: item.hpp_saat_itu,
+      qty_masuk: qtyDiterima,
+      qty_sisa: qtyDiterima,
+      tanggal_masuk: new Date().toISOString().split('T')[0]
+    })
   }
+
+  await supabase.from('transfer_stok')
+    .update({ status: 'diterima' })
+    .eq('id', detailData.id)
+  
+  setSaving(false)
+  setView('list')
+  fetchAll()
+}
 
   const handleCancel = async () => {
     if (!alasanCancel) { alert('Pilih alasan cancel!'); return }
