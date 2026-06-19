@@ -142,7 +142,7 @@ export default function Dashboard() {
                   icon="📤" title={`${ts.nomor_ts} siap dikirim`}
                   subtitle={`Transfer ke ${ts.cabang_tujuan?.nama_cabang} — klik Kirim`}
                   onClick={() => navigate('/ts')}
-                  color="#2d7a2d" bg="#f0faf0" border="#c0e0c0" />
+                  color="#7a562d" bg="#f0faf0" border="#c0e0c0" />
               ))}
               {aksiPedagang.tsPerluTerima.map(ts => (
                 <ActionCard key={ts.id}
