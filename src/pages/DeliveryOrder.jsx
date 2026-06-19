@@ -28,7 +28,11 @@ export default function DeliveryOrder() {
       supabase.from('delivery_order').select('*, cabang(kode_cabang, nama_cabang), permintaan_barang(nomor_pb)').order('created_at', { ascending: false }),
       supabase.from('cabang').select('*').eq('is_aktif', true).order('kode_cabang'),
       supabase.from('produk').select('*').eq('is_aktif', true).order('kode_barang'),
-      supabase.from('permintaan_barang').select('*, cabang(nama_cabang)').eq('status', 'approved').order('created_at', { ascending: false })
+      supabase.from('permintaan_barang')
+  .select('*, cabang(nama_cabang), delivery_order(id)')
+  .eq('status', 'approved')
+  .is('delivery_order.id', null)
+  .order('created_at', { ascending: false })
     ])
     setDoList(d.data || [])
     setCabang(c.data || [])
